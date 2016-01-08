@@ -1,0 +1,274 @@
+<?php
+define('DRUPAL_DOWNLOAD','https://www.drupal.org/project/');
+define('UPDATE_STATUS_URL', 'http://updates.drupal.org/release-history');
+
+/**
+*	Implements hook_menu().
+*/
+function upgrade_status_menu(){
+	$items = array();
+	$items['admin/reports/updates/available-module'] = array(
+		'title' => 'Upgrade Status',
+		'page callback' => 'drupal_get_form',
+		'page arguments' => array('available_module_form'),
+		'file' => 'includes/available_module.form.inc',
+		'access callback' => TRUE,
+		'type' => MENU_LOCAL_TASK,
+	);
+	$items['available'] = array(
+		'title' => t('Available-module'),
+		'description' => 'To display the non-available modules during migrate.',
+		'page callback' => 'available_modules',
+		'access callback' => TRUE,
+		'type' => MENU_CALLBACK,
+	);
+
+	return $items;
+}
+
+/**
+*	Connecting to the path.
+*/
+function available_modules(){
+	$result = available_module_info();
+	$header = array(
+		array('data' => t('Module/Theme Name'), 'class' => 'header'),
+		array('data' => t('Installed Version'), 'class' => 'header'),
+		array('data' => t('Up to Date Status'), 'class' => 'header'),
+        array('data' => t('Available for 8.x'), 'class' => 'header'),
+		array('data' => t('Available Release'), 'class' => 'header'),
+	);
+    $un_header = array(
+        array('data' => t('Module/Theme Name'), 'class' => 'header'),
+        array('data' => t('Installed Version'), 'class' => 'header'),
+        array('data' => t('Up to Date Status'), 'class' => 'header'),
+    );
+    $custom_header = array(
+        array('data' => t('Module/Theme Name'), 'class' => 'header'),
+        array('data' => t('Hook Functions/Queries'), 'class' => 'header'),
+    );
+    if (!empty($result['contrib']['no'])) {
+      $no_release_table = theme('table', array(
+        'header' => $un_header,
+        'rows' => $result['contrib']['no'],
+        'attributes'=> array (
+          'id' => array('table-modules'),
+          'class' => array('update-module'),
+        ),
+        'caption' => 'Unavailable Modules/Themes'
+        )
+      );
+      $release_table = $no_release_table;
+    }
+   $custom_module_table = theme('table', array(
+    'header' => $custom_header,
+    'rows' => $result['custom'],
+    'attributes'=> array (
+      'id' => array('table-modules'),
+      'class' => array('update-module'),
+    ),
+    'caption' => 'Custom Modules/Themes'
+    )
+   );
+   $avail_release_table = theme('table', array(
+	    'header' => $header,
+	    'rows' => $result['contrib']['avail'],
+	    'attributes'=> array (
+	      'id' => array('table-modules'),
+	      'class' => array('update-module'),
+	    ),
+	    'caption' => 'Modules/Themes available for upgrade'
+	    )
+   );
+  $release_table .= $avail_release_table;
+  return $release_table.$custom_module_table;
+}
+/**
+*	Recursive Iteration to get path.
+*	And to get modules in .info file..
+*/
+
+function available_module_info(){
+	$path = getcwd()."/sites/all/";
+	if(file_exists($path) && is_readable($path)){
+		$iterator = new RecursiveIteratorIterator(
+               		new RecursiveDirectoryIterator($path),
+            		RecursiveIteratorIterator::SELF_FIRST);	//Get all the files by using RecursiveIterator.
+	foreach($iterator as $file) $files[] = $file->getRealpath();
+       foreach ($files as $key => $single_file) {
+		if(strpos($single_file, '.info') and !(strpos($single_file, 'inc'))){
+		$lines = file($single_file);
+      	foreach ($lines as $line_num => $line) {
+        	if(preg_match('/project/', $line) and !(strpos($line, 'http'))){
+            	$line = substr($line, strpos($line, "\"")+1);
+            	$pname = substr($line, 0,strpos($line, "\""));
+        	}
+        	else if(preg_match('/version/', $line)){
+            	$line = substr($line, strpos($line, "\"")+1);
+            	$pversion = substr($line, 0,strpos($line, "\""));
+        	}
+          else if(preg_match('/name/', $line)){
+              $line = substr($line, strpos($line, "=")+1);
+              $cpname = $line;
+          }
+      	}
+        if(!empty($pversion) and !empty($pname)){
+          $info[$pname] = $pname.'@'.$pversion;
+          $pname = $pversion = '';
+        }
+        else {
+          $hook_function = find_hook_functions($single_file);
+
+                $custom_module[] = array(
+                    array('data' => $cpname, 'class' => 'other'),
+                    array('data' => $hook_function, 'class' => 'other'),
+                );
+
+
+        }
+      }
+	}
+  return array('contrib' => curl_check_available($info),'custom' => $custom_module);
+ }
+	else
+	drupal_set_message("Cannot read from $type ", "error");
+}
+/**
+*	To Check whether the module.
+*/
+function curl_check_available($info){
+  foreach ($info as $key => $value) {
+    $pro_name = substr($value,0,strpos($value, '@'));
+    $pro_version = substr($value, strpos($value, '@')+1);
+    if(module_exists($key)){
+      $status = "";
+      $version = floor(VERSION)+1;
+      $url = array('0' => UPDATE_STATUS_URL.'/'.$pro_name.'/'.$version.'.x', '1' => UPDATE_STATUS_URL.'/'.$pro_name.'/'.floor(VERSION).'.x');
+      $curl[0] = curl_init();
+      $curl[1] = curl_init();
+      curl_setopt($curl[0], CURLOPT_URL, $url[0]);
+      curl_setopt($curl[1], CURLOPT_URL, $url[1]);
+      curl_setopt($curl[0], CURLOPT_RETURNTRANSFER, true);
+      curl_setopt($curl[1], CURLOPT_RETURNTRANSFER, true);
+      curl_setopt($curl[0], CURLOPT_HEADER, false);
+      curl_setopt($curl[1], CURLOPT_HEADER, false);
+      $data = curl_exec($curl[0]);
+      $ver_data = curl_exec($curl[1]);
+      curl_close($curl[0]);
+      curl_close($curl[1]);
+      $object = simplexml_load_string($data);
+      $arr = (array)$object;
+      $ver = (array)simplexml_load_string($ver_data);
+      $curt_version = $ver['releases']->release->version;
+      $name_status = $ver['title'];
+      $module_status = isUpdateStatus($ver, $pro_version);
+      $download_link = $ver['releases']->release->download_link;
+      switch ($module_status) {
+        case 'Security update':
+          $update = theme_image( array( 'path' => $GLOBALS['base_url'].'/misc/watchdog-error.png', 'attributes' => array('style' => 'border:0px none')))." ".$module_status." : ".l(t($curt_version),$download_link, array('html' => TRUE, 'attributes' => array('target' => '_blank')));
+          break;
+          case 'Available update':
+            $update = theme_image( array( 'path' => $GLOBALS['base_url'].'/misc/watchdog-warning.png', 'attributes' => array('style' => 'border:0px none')))." ".$module_status." : ".l(t($curt_version),$download_link, array('html' => TRUE, 'attributes' => array('target' => '_blank')));
+            break;
+          default:
+          $update = theme_image( array( 'path' => $GLOBALS['base_url'].'/misc/watchdog-ok.png', 'attributes' => array('style' => 'border:0px none')))." ".'Up to Date';
+          break;
+     }
+      if(!empty($arr[0])){
+        $rows['no'][] = array(
+          array('data' => l(t($name_status),DRUPAL_DOWNLOAD.$pro_name, array('html' => TRUE, 'attributes' => array('target' => '_blank'))).' ('.$pro_name.')', 'class' => 'norelease'),
+          array('data' => $pro_version, 'class' => 'norelease'),
+          array('data' => $update, 'class' => 'norelease'),
+        );
+      }
+      else if(empty($arr[0])){
+        $project_version = $object->releases->release->version;
+        $machine_name=$object->short_name;
+        $recommended_major = $object->recommended_major;
+        $supported = $object->supported_majors;
+        if(!empty($recommended_major))
+          $status = "Recommended,";
+        if (!empty($supported))
+          $status .= "Supported,";
+        if (strpos($project_version, 'dev'))
+          $status .= " Development";
+        if((strpos($project_version, 'dev')) and empty($supported)){
+          $rows['avail'][] = array(
+            array('data' => l(t($object->title),DRUPAL_DOWNLOAD.$machine_name,array('html' => TRUE, 'attributes' => array('target' => '_blank'))).' ('.$machine_name.')', 'class' => 'dev'),
+            array('data' => $pro_version, 'class' => 'dev'),
+            array('data' => $update, 'class' => 'dev'),
+            array('data' => $object->releases->release->version, 'class' => 'dev'),
+            array('data' => $status, 'class' => 'dev'),
+          );
+        }
+        elseif(!strpos($project_version, 'dev')) {
+          $rows['avail'][] = array(
+            array('data' => l(t($object->title),DRUPAL_DOWNLOAD.$machine_name, array('html' => TRUE, 'attributes' => array('target' => '_blank'))).' ('.$machine_name.')', 'class' => 'other'),
+            array('data' => $pro_version, 'class' => 'other'),
+            array('data' => $update, 'class' => 'other'),
+            array('data' => $object->releases->release->version, 'class' => 'other'),
+            array('data' => $status, 'class' => 'other'),
+          );
+         }
+         else{
+          $rows['avail'][] = array(
+            array('data' => l(t($object->title),DRUPAL_DOWNLOAD.$machine_name, array('html' => TRUE, 'attributes' => array('target' => '_blank'))).' ('.$machine_name.')', 'class' => 'available'),
+            array('data' => $pro_version, 'class' => 'available'),
+            array('data' => $update, 'class' => 'available'),
+            array('data' => $object->releases->release->version, 'class' => 'available'),
+            array('data' => $status, 'class' => 'available'),
+          );
+         }
+        }
+       }
+  }
+  return $rows;
+}
+/**
+*   Check module update status.
+*/
+function isUpdateStatus($available, $current) {
+  $state = '';
+  foreach ($available['releases'] as $key => $release) {
+    $loop_version = (string)$release->version;
+    $release_terms[$loop_version] = $release->terms;
+  }
+  $key = array_search($current, array_keys($release_terms), true);
+  if ($key !== false) {
+      $slice = array_slice($release_terms, null, $key, true);
+  }
+  foreach ($slice as $key => $value) {
+    $release_type = !empty($value->term->value)?$value->term->value:'';
+    if($release_type == 'Security update')
+    return "Security update";
+  else
+    $state = "Available update";
+  }
+  return $state;
+}
+/**
+*   Finding hook functions.
+*/
+function find_hook_functions($module_path){
+  $module_path = str_replace('.info', '.module', $module_path);
+  $mod_name = substr($module_path, strrpos($module_path, "/")+1);
+  $mod_name = str_replace('.module', '', $mod_name);
+   if(file_exists($module_path) and is_readable($module_path)){
+    $lines = file($module_path);
+    foreach ($lines as $line_num => $line) {      
+          if (preg_match("(function\s)", $line) and strpos($line, $mod_name) and (!strpos($line, '*')) and (!strpos($line, '#')) and !preg_match('/\//', $line))
+          {
+            $line = str_replace('function', 'hook', $line);
+            $line = str_replace('{', '', $line);
+            $func_line[] = $line;           
+           } 
+        }
+        $hook_str = implode(', ', $func_line);
+        return $hook_str;
+   }
+   else{
+       $hook_str = "There is no Hook function are present";
+       return $hook_str;
+   }
+}
+
