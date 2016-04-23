@@ -1,25 +1,26 @@
 <?php
+
 define('DRUPAL_DOWNLOAD','https://www.drupal.org/project/');
 define('UPDATE_STATUS_URL', 'http://updates.drupal.org/release-history');
 
 /**
-*	Implements hook_menu().
-*/
+ *	Implements hook_menu().
+ */
 function upgrade_status_menu(){
 	$items = array();
 	$items['admin/reports/updates/available-module'] = array(
-		'title' => 'Upgrade Status',
+		'title' => t('Advanced Upgrade Status'),
 		'page callback' => 'drupal_get_form',
 		'page arguments' => array('available_module_form'),
 		'file' => 'includes/available_module.form.inc',
-		'access callback' => TRUE,
+//		'access callback' => TRUE,
 		'type' => MENU_LOCAL_TASK,
 	);
 	$items['available'] = array(
 		'title' => t('Available-module'),
 		'description' => 'To display the non-available modules during migrate.',
 		'page callback' => 'available_modules',
-		'access callback' => TRUE,
+//		'access callback' => TRUE,
 		'type' => MENU_CALLBACK,
 	);
 
@@ -27,9 +28,10 @@ function upgrade_status_menu(){
 }
 
 /**
-*	Connecting to the path.
-*/
+ *	Connecting to the path.
+ */
 function available_modules(){
+
 	$result = available_module_info();
 	$header = array(
 		array('data' => t('Module/Theme Name'), 'class' => 'header'),
@@ -48,47 +50,50 @@ function available_modules(){
         array('data' => t('Hook Functions/Queries'), 'class' => 'header'),
     );
     if (!empty($result['contrib']['no'])) {
+
       $no_release_table = theme('table', array(
-        'header' => $un_header,
-        'rows' => $result['contrib']['no'],
-        'attributes'=> array (
-          'id' => array('table-modules'),
-          'class' => array('update-module'),
-        ),
-        'caption' => 'Unavailable Modules/Themes'
-        )
-      );
+                                'header' => $un_header,
+                                'rows' => $result['contrib']['no'],
+                                'attributes'=> array (
+                                  'id' => array('table-modules'),
+                                  'class' => array('update-module'),
+                                ),
+                                'caption' => 'Unavailable Modules/Themes'
+                                ));
       $release_table = $no_release_table;
     }
+
    $custom_module_table = theme('table', array(
-    'header' => $custom_header,
-    'rows' => $result['custom'],
-    'attributes'=> array (
-      'id' => array('table-modules'),
-      'class' => array('update-module'),
-    ),
-    'caption' => 'Custom Modules/Themes'
-    )
-   );
+                                'header' => $custom_header,
+                                'rows' => $result['custom'],
+                                'attributes'=> array (
+                                  'id' => array('table-modules'),
+                                  'class' => array('update-module'),
+                                ),
+                                'caption' => 'Custom Modules/Themes'
+                                ));
+
    $avail_release_table = theme('table', array(
-	    'header' => $header,
-	    'rows' => $result['contrib']['avail'],
-	    'attributes'=> array (
-	      'id' => array('table-modules'),
-	      'class' => array('update-module'),
-	    ),
-	    'caption' => 'Modules/Themes available for upgrade'
-	    )
-   );
+                                'header' => $header,
+                                'rows' => $result['contrib']['avail'],
+                                'attributes'=> array (
+                                  'id' => array('table-modules'),
+                                  'class' => array('update-module'),
+                                ),
+                                'caption' => 'Modules/Themes available for upgrade'
+                                ));
+
   $release_table .= $avail_release_table;
+
   return $release_table.$custom_module_table;
 }
-/**
-*	Recursive Iteration to get path.
-*	And to get modules in .info file..
-*/
 
+/**
+ *	Recursive Iteration to get path.
+ *	And to get modules in .info file..
+ */
 function available_module_info(){
+
 	$path = getcwd()."/sites/all/";
 	if(file_exists($path) && is_readable($path)){
 		$iterator = new RecursiveIteratorIterator(
@@ -133,6 +138,7 @@ function available_module_info(){
 	else
 	drupal_set_message("Cannot read from $type ", "error");
 }
+
 /**
 *	To Check whether the module.
 */

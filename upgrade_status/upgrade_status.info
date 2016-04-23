@@ -1,4 +1,4 @@
-name = Upgrade Status
+name = Advanced Upgrade Status Report
 core = 7.x
 stylesheets[all][] = css/custom.css
 description = It will display available modules and non available modules in Drupal 8.

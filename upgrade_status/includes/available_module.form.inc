@@ -1,10 +1,10 @@
 <?php
 
 /**
- * Build the settings form.
+ * Build settings form.
  */
 function available_module_form() {
-  $form = array();
+
   $form['border'] = array(
     '#type' => 'fieldset',
     '#title' => t('Module/Theme Upgrade Status Report'),
@@ -14,7 +14,6 @@ function available_module_form() {
     '#suffix' => "</div>",
     '#markup' => t('Current Drupal Core version is : Drupal ').VERSION,
     '#attributes' => array('class' => array('search-form')),
-
   );
   $form['border']['note'] = array(
     '#markup' => 'Provides upgrade available status only for enabled Modules and Themes.'
@@ -25,9 +24,8 @@ function available_module_form() {
     '#description' => t('Select a Drupal version to check Modules and Themes availability.'),
     '#default_value' => 8,
     '#options' => array(
-          7 => 'Drupal 7',
-         8 => 'Drupal 8',
-       ),
+                7 => 'Drupal 7',
+                8 => 'Drupal 8'),
     '#required' => TRUE,
     '#disabled' => TRUE,    //Now a days drupal 8 we going to using.
   );
@@ -37,16 +35,20 @@ function available_module_form() {
         '#value' => $result_display,
     );
     $form['border']['csv_download'] = array(
-       '#type' => 'submit',
+        '#type' => 'submit',
         '#value' => 'Download as CSV',
     );
 
     $form['result_border']['result'] = array(
-    '#markup' => $result_display,
-  );
+        '#markup' => $result_display,
+    );
 
   return $form;
 }
+
+/**
+ *  To Get PDF file while clicking "Download as CSV" button.
+ */
 function available_module_form_submit($form, &$form_state){
     $result = $form_state['values']['store'];
 
