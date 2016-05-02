@@ -13,14 +13,14 @@ function upgrade_status_menu(){
 		'page callback' => 'drupal_get_form',
 		'page arguments' => array('available_module_form'),
 		'file' => 'includes/available_module.form.inc',
-//		'access callback' => TRUE,
+		'access callback' => TRUE,
 		'type' => MENU_LOCAL_TASK,
 	);
 	$items['available'] = array(
 		'title' => t('Available-module'),
 		'description' => 'To display the non-available modules during migrate.',
 		'page callback' => 'available_modules',
-//		'access callback' => TRUE,
+		'access callback' => TRUE,
 		'type' => MENU_CALLBACK,
 	);
 
